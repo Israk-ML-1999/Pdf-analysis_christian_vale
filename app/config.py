@@ -108,7 +108,7 @@ class Settings:
         "document_overview": {
             "required": True,
             "format": "descriptive",
-            "word_count": "800-1000",
+            "word_count": "1000-1200",
             "description": "Comprehensive summary of tender document"
         },
         "title_page": {
@@ -119,7 +119,7 @@ class Settings:
         "executive_summary": {
             "required": True,
             "format": "descriptive",
-            "word_count": "600-800",
+            "word_count": "800-1000",
             "description": "High-level proposal overview"
         },
         "key_dates_and_rules": {
@@ -130,13 +130,13 @@ class Settings:
         "compliance_matrix": {
             "required": True,
             "format": "descriptive",
-            "word_count": "500-700",
+            "word_count": "700-900",
             "description": "Requirement compliance mapping"
         },
         "technical_approach": {
             "required": True,
             "format": "descriptive",
-            "word_count": "1000-1200",
+            "word_count": "1200-1400",
             "description": "Implementation methodology"
         },
         "risks_and_gaps": {
@@ -147,25 +147,25 @@ class Settings:
         "financial_proposal_overview": {
             "required": True,
             "format": "descriptive",
-            "word_count": "400-600",
+            "word_count": "600-700",
             "description": "Cost approach overview"
         },
         "organizational_capability": {
             "required": True,
             "format": "descriptive",
-            "word_count": "600-800",
+            "word_count": "700-800",
             "description": "Company qualifications"
         },
         "recommendations_and_value_additions": {
             "required": True,
             "format": "descriptive",
-            "word_count": "500-700",
+            "word_count": "700-800",
             "description": "Value-added services"
         },
         "implementation_timeline": {
             "required": True,
             "format": "descriptive",
-            "word_count": "400-500",
+            "word_count": "500-600",
             "description": "Project schedule"
         },
         "appendix": {
