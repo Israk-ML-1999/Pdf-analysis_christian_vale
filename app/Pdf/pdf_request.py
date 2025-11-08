@@ -35,7 +35,7 @@ class TenderProposalResponse(BaseModel):
     # Required core sections
     document_overview: Optional[str] = Field(
         default=None, 
-        description="Comprehensive overview of the tender document (800-1000 words)"
+        description="Comprehensive overview of the tender document (1000-1200 words)"
     )
     
     title_page: Optional[TitlePage] = Field(
@@ -45,7 +45,7 @@ class TenderProposalResponse(BaseModel):
     
     executive_summary: Optional[str] = Field(
         default=None,
-        description="Executive summary of the proposal (600-800 words)"
+        description="Executive summary of the proposal (800-1000 words)"
     )
     
     # Key points sections (bullet format)
@@ -62,32 +62,32 @@ class TenderProposalResponse(BaseModel):
     # Descriptive sections (paragraph format)
     compliance_matrix: Optional[str] = Field(
         default=None,
-        description="Detailed compliance mapping (500-700 words)"
+        description="Detailed compliance mapping (700-900 words)"
     )
     
     technical_approach: Optional[str] = Field(
         default=None,
-        description="Detailed technical methodology and approach (1000-1200 words)"
+        description="Detailed technical methodology and approach (1200-1400 words)"
     )
     
     financial_proposal_overview: Optional[str] = Field(
         default=None,
-        description="Financial approach overview without actual pricing (400-600 words)"
+        description="Financial approach overview without actual pricing (600-700 words)"
     )
     
     organizational_capability: Optional[str] = Field(
         default=None,
-        description="Organization's qualifications and experience (600-800 words)"
+        description="Organization's qualifications and experience (700-800 words)"
     )
     
     recommendations_and_value_additions: Optional[str] = Field(
         default=None,
-        description="Recommendations and value-added services (500-700 words)"
+        description="Recommendations and value-added services (700-800 words)"
     )
     
     implementation_timeline: Optional[str] = Field(
         default=None,
-        description="Detailed implementation schedule (400-500 words)"
+        description="Detailed implementation schedule (500-600 words)"
     )
     
     appendix: Optional[Appendix] = Field(
