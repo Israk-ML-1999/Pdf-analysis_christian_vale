@@ -72,19 +72,3 @@ async def root():
             "3": "Receive comprehensive JSON proposal response"
         }
     }
-
-@app.get("/health", tags=["System"])
-async def health_check():
-    """
-    General system health check endpoint
-    """
-    return {
-        "status": "healthy",
-        "service": "Government Tender Proposal Generator API",
-        "version": settings.APP_VERSION,
-        "components": {
-            "api": "operational",
-            "pdf_service": "operational",
-            "ai_model": "Gemini 2.5 Flash"
-        }
-    }

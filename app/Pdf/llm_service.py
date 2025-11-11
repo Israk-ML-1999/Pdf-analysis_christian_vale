@@ -1,6 +1,7 @@
 from google import genai
 from google.genai.types import Part
 import json
+import re
 from typing import Dict, Any
 import os
 from datetime import datetime
@@ -10,6 +11,71 @@ class GeminiPDFService:
         """Initialize Gemini client with API key"""
         self.client = genai.Client(api_key=api_key)
         self.model_id = "gemini-2.5-flash"
+        
+    def _clean_json_string(self, text: str) -> str:
+        """
+        Clean and prepare text for JSON parsing
+        Handles control characters and malformed JSON
+        """
+        # Remove markdown code blocks
+        text = text.strip()
+        if text.startswith("```json"):
+            text = text[7:]
+        if text.startswith("```"):
+            text = text[3:]
+        if text.endswith("```"):
+            text = text[:-3]
+        text = text.strip()
+        
+        # Try to find JSON object boundaries
+        # Sometimes the model generates text before or after the JSON
+        start_idx = text.find('{')
+        end_idx = text.rfind('}')
+        
+        if start_idx != -1 and end_idx != -1:
+            text = text[start_idx:end_idx + 1]
+        
+        return text
+    
+    def _parse_json_safely(self, text: str) -> Dict[str, Any]:
+        """
+        Attempt to parse JSON with multiple strategies
+        """
+        # Strategy 1: Direct parse
+        try:
+            return json.loads(text)
+        except json.JSONDecodeError as e:
+            print(f"[JSON PARSE] Direct parse failed: {e}")
+        
+        # Strategy 2: Clean and parse
+        try:
+            cleaned = self._clean_json_string(text)
+            return json.loads(cleaned)
+        except json.JSONDecodeError as e:
+            print(f"[JSON PARSE] Cleaned parse failed: {e}")
+        
+        # Strategy 3: Use regex to fix common issues
+        try:
+            # Replace unescaped newlines in strings
+            # This regex finds strings and escapes newlines within them
+            def fix_newlines(match):
+                string_content = match.group(1)
+                # Escape newlines and tabs
+                string_content = string_content.replace('\n', '\\n')
+                string_content = string_content.replace('\r', '\\r')
+                string_content = string_content.replace('\t', '\\t')
+                return f'"{string_content}"'
+            
+            # Find all quoted strings and fix them
+            cleaned = self._clean_json_string(text)
+            fixed = re.sub(r'"([^"]*)"', fix_newlines, cleaned, flags=re.DOTALL)
+            
+            return json.loads(fixed)
+        except Exception as e:
+            print(f"[JSON PARSE] Regex fix failed: {e}")
+        
+        # Strategy 4: Last resort - return structured error
+        raise ValueError("All JSON parsing strategies failed")
         
     def generate_proposal(self, pdf_bytes: bytes) -> Dict[str, Any]:
         """
@@ -125,53 +191,78 @@ Now analyze the provided tender document and generate a complete, professional p
             )
             
             # Generate content using Gemini
+            print(f"[GEMINI] Sending request to {self.model_id}...")
             response = self.client.models.generate_content(
                 model=self.model_id,
                 contents=[pdf_file, prompt],
             )
             
-            # Parse response text as JSON
+            print(f"[GEMINI] Response received, parsing JSON...")
+            
+            # Get response text
             report_text = response.text.strip()
             
-            # Remove markdown code blocks if present
-            if report_text.startswith("```json"):
-                report_text = report_text[7:]
-            if report_text.startswith("```"):
-                report_text = report_text[3:]
-            if report_text.endswith("```"):
-                report_text = report_text[:-3]
+            # Log first 500 chars for debugging
+            print(f"[GEMINI] Response preview: {report_text[:500]}...")
             
-            report_text = report_text.strip()
-            
-            # Parse JSON
+            # Parse JSON with multiple strategies
             try:
-                proposal_data = json.loads(report_text)
-            except json.JSONDecodeError as je:
-                # If JSON parsing fails, return structured error with raw text
+                proposal_data = self._parse_json_safely(report_text)
+            except ValueError as ve:
+                # All parsing strategies failed
                 return {
                     "status": "error",
                     "error_type": "json_parse_error",
-                    "message": "Failed to parse AI response as JSON. The model may have generated text instead of JSON format.",
-                    "raw_response": report_text[:2000],  # First 2000 chars for debugging
-                    "error_details": str(je),
-                    "suggestion": "Try uploading the PDF again or check if the PDF is readable"
+                    "message": "Failed to parse AI response as valid JSON after multiple attempts.",
+                    "raw_response": report_text[:2000],
+                    "error_details": str(ve),
+                    "suggestion": "The AI model generated malformed JSON. Please try again or use a smaller PDF.",
+                    "debug_info": {
+                        "response_length": len(report_text),
+                        "starts_with": report_text[:100],
+                        "ends_with": report_text[-100:]
+                    }
                 }
             
-            # Add success status and timestamp
+            # Validate required fields
+            required_fields = [
+                "document_overview", "title_page", "executive_summary",
+                "key_dates_and_rules", "compliance_matrix", "technical_approach"
+            ]
+            
+            missing_fields = [field for field in required_fields if field not in proposal_data]
+            
+            if missing_fields:
+                print(f"[GEMINI] Warning: Missing required fields: {missing_fields}")
+                proposal_data["_warnings"] = {
+                    "missing_fields": missing_fields,
+                    "message": "Some required sections are missing from the generated proposal"
+                }
+            
+            # Add success metadata
             proposal_data["status"] = "success"
             proposal_data["message"] = "Proposal generated successfully"
             proposal_data["generated_at"] = datetime.now().isoformat()
             
-            # Calculate approximate page count based on word count
-            total_words = sum(
-                len(str(v).split()) for v in proposal_data.values() 
-                if isinstance(v, (str, list))
-            )
-            proposal_data["estimated_pages"] = f"{max(15, min(20, total_words // 600))}-{max(16, min(20, total_words // 500))} pages"
+            # Calculate word count
+            total_words = 0
+            for key, value in proposal_data.items():
+                if isinstance(value, str):
+                    total_words += len(value.split())
+                elif isinstance(value, list):
+                    for item in value:
+                        if isinstance(item, str):
+                            total_words += len(item.split())
+            
+            proposal_data["actual_word_count"] = total_words
+            proposal_data["estimated_pages"] = f"{max(15, min(20, total_words // 600))}-{max(16, min(22, total_words // 500))}"
+            
+            print(f"[GEMINI] Proposal generated: {total_words} words, ~{proposal_data['estimated_pages']} pages")
             
             return proposal_data
             
         except Exception as e:
+            print(f"[GEMINI] Exception: {type(e).__name__} - {str(e)}")
             return {
                 "status": "error",
                 "error_type": type(e).__name__,
