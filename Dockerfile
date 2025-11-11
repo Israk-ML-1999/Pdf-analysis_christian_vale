@@ -25,11 +25,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the app code into the container
 COPY . /app/
-# Create required directories
-RUN mkdir -p /app/temp /app/audio
-
-# Ensure proper permissions
-RUN chmod -R 777 /app/audio
 
 # Expose port 8000 (Uvicorn will run here)
 EXPOSE 8000

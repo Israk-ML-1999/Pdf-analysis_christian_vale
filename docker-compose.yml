@@ -7,7 +7,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: Willmo
+    container_name: chhiris_vale
     expose:
       - '8000'
     env_file:
@@ -19,9 +19,9 @@ services:
 
   nginx:
     image: nginx:alpine
-    container_name: nginx_proxy_willmo
+    container_name: nginx_proxy_chhiris_vale
     ports:
-      - '0.0.0.0:8089:80'
+      - '0.0.0.0:8088:80'
     networks:
       - app-network
     volumes:
