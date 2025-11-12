@@ -38,7 +38,7 @@ async def analyze_tender_document(
     )
 ):
     """
-    Upload a government tender document and generate a comprehensive 15-20 page proposal.
+    generate a comprehensive 15-20 page proposal.
     
     **Features:**
     - 📄 Analyzes tender documents up to 200 pages
