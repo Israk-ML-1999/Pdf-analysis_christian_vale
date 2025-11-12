@@ -15,66 +15,116 @@ class GeminiPDFService:
     def _clean_json_string(self, text: str) -> str:
         """
         Clean and prepare text for JSON parsing
-        Handles control characters and malformed JSON
+        Handles control characters, markdown blocks, and malformed JSON
         """
-        # Remove markdown code blocks
+        # Remove markdown code block wrappers
         text = text.strip()
+        
+        # Remove various markdown patterns
         if text.startswith("```json"):
-            text = text[7:]
-        if text.startswith("```"):
-            text = text[3:]
+            text = text[7:].strip()
+        elif text.startswith("```"):
+            text = text[3:].strip()
+        
         if text.endswith("```"):
-            text = text[:-3]
-        text = text.strip()
+            text = text[:-3].strip()
+        
+        # Remove control characters except \n, \r, \t (which are valid in JSON strings when escaped)
+        # This includes null bytes and other problematic characters
+        text = ''.join(char for char in text if ord(char) >= 32 or char in '\n\r\t')
         
         # Try to find JSON object boundaries
         # Sometimes the model generates text before or after the JSON
         start_idx = text.find('{')
         end_idx = text.rfind('}')
         
-        if start_idx != -1 and end_idx != -1:
+        if start_idx != -1 and end_idx != -1 and start_idx < end_idx:
             text = text[start_idx:end_idx + 1]
         
-        return text
+        return text.strip()
     
     def _parse_json_safely(self, text: str) -> Dict[str, Any]:
         """
         Attempt to parse JSON with multiple strategies
+        Handles markdown, control chars, escaped newlines, truncation
         """
         # Strategy 1: Direct parse
         try:
             return json.loads(text)
         except json.JSONDecodeError as e:
-            print(f"[JSON PARSE] Direct parse failed: {e}")
+            print(f"[JSON PARSE] Direct parse failed at position {e.pos}: {e.msg}")
         
         # Strategy 2: Clean and parse
         try:
             cleaned = self._clean_json_string(text)
             return json.loads(cleaned)
         except json.JSONDecodeError as e:
-            print(f"[JSON PARSE] Cleaned parse failed: {e}")
+            print(f"[JSON PARSE] Cleaned parse failed at position {e.pos}: {e.msg}")
         
-        # Strategy 3: Use regex to fix common issues
+        # Strategy 3: Fix escaped newlines in string literals
         try:
-            # Replace unescaped newlines in strings
-            # This regex finds strings and escapes newlines within them
-            def fix_newlines(match):
-                string_content = match.group(1)
-                # Escape newlines and tabs
-                string_content = string_content.replace('\n', '\\n')
-                string_content = string_content.replace('\r', '\\r')
-                string_content = string_content.replace('\t', '\\t')
-                return f'"{string_content}"'
-            
-            # Find all quoted strings and fix them
             cleaned = self._clean_json_string(text)
-            fixed = re.sub(r'"([^"]*)"', fix_newlines, cleaned, flags=re.DOTALL)
-            
+            # Replace actual newlines with \\n within strings
+            # This is a careful regex that handles quoted strings
+            fixed = re.sub(
+                r'"([^"\\]|\\.)*"',
+                lambda m: m.group(0).replace('\n', '\\n').replace('\r', '\\r').replace('\t', '\\t'),
+                cleaned,
+                flags=re.MULTILINE | re.DOTALL
+            )
             return json.loads(fixed)
         except Exception as e:
-            print(f"[JSON PARSE] Regex fix failed: {e}")
+            print(f"[JSON PARSE] Escaped newlines fix failed: {e}")
         
-        # Strategy 4: Last resort - return structured error
+        # Strategy 4: Try to close incomplete JSON (if response was cut off)
+        try:
+            cleaned = self._clean_json_string(text)
+            # Count braces to see if JSON is incomplete
+            open_braces = cleaned.count('{') - cleaned.count('}')
+            open_brackets = cleaned.count('[') - cleaned.count(']')
+            
+            if open_braces > 0 or open_brackets > 0:
+                print(f"[JSON PARSE] Detected incomplete JSON: {open_braces} unclosed braces, {open_brackets} unclosed brackets. Attempting to close...")
+                # Close open structures
+                fixed = cleaned + ('}' * open_braces) + (']' * open_brackets)
+                result = json.loads(fixed)
+                print(f"[JSON PARSE] Successfully parsed truncated JSON after closing structures")
+                return result
+        except Exception as e:
+            print(f"[JSON PARSE] Truncation fix failed: {e}")
+        
+        # Strategy 5: Extract and merge multiple JSON objects (if multiple were generated)
+        try:
+            cleaned = self._clean_json_string(text)
+            # Find all JSON objects
+            json_objects = []
+            depth = 0
+            current_obj = ""
+            
+            for char in cleaned:
+                current_obj += char
+                if char == '{':
+                    depth += 1
+                elif char == '}':
+                    depth -= 1
+                    if depth == 0 and current_obj.strip():
+                        try:
+                            obj = json.loads(current_obj)
+                            json_objects.append(obj)
+                            current_obj = ""
+                        except:
+                            pass
+            
+            if len(json_objects) > 0:
+                print(f"[JSON PARSE] Found {len(json_objects)} JSON objects, merging...")
+                merged = {}
+                for obj in json_objects:
+                    merged.update(obj)
+                return merged
+        except Exception as e:
+            print(f"[JSON PARSE] Multiple JSON merge failed: {e}")
+        
+        # Last resort - return structured error
         raise ValueError("All JSON parsing strategies failed")
         
     def generate_proposal(self, pdf_bytes: bytes) -> Dict[str, Any]:
@@ -91,7 +141,9 @@ class GeminiPDFService:
 You are an expert government tender analyst and proposal writer. 
 Analyze the provided government tender document and create a comprehensive, professional proposal response.
 
-IMPORTANT: You MUST respond in valid JSON format with a dynamic structure based on the tender document content.
+CRITICAL: Your ENTIRE response must be ONLY valid JSON - NO markdown formatting, NO code blocks, NO explanatory text.
+Do NOT wrap your response in ```json or ``` or any markdown.
+Output ONLY the raw JSON object, nothing else.
 
 Your response should follow this structure:
 {
@@ -160,27 +212,20 @@ Your response should follow this structure:
 }
 
 CRITICAL INSTRUCTIONS:
-1. **Dynamic Headlines**: Create section headings based on the actual tender content. If the tender is for IT services, use IT-specific sections. If construction, use construction-specific sections.
+1. **ONLY JSON OUTPUT**: Your response must be ONLY valid JSON. No markdown. No code blocks. No text outside the JSON object.
+2. **Dynamic Headlines**: Create section headings based on the actual tender content. If the tender is for IT services, use IT-specific sections. If construction, use construction-specific sections.
+3. **Key Dates and Rules**: Present as array items with clear, concise information. Include dates, amounts, and requirements.
+4. **Risks and Gaps**: Present as array items highlighting specific concerns and mitigation strategies.
+5. **All Other Sections**: Write in detailed, descriptive paragraphs. Be comprehensive and professional.
+6. **Document Overview**: This is crucial - make it detailed enough that someone reading only this section understands the complete tender.
+7. **Word Count**: Aim for 10,000-12,000 total words to ensure 15-20 pages of content.
+8. **Professional Tone**: Use formal business language appropriate for government proposals.
+9. **Specificity**: Base everything on the actual tender document. Extract real dates, numbers, requirements.
+10. **Valid JSON**: Ensure your response is properly formatted JSON. Use proper escaping for special characters (\\n for newlines, \\" for quotes, etc).
+11. **Completeness**: Fill all sections with meaningful content. Never use placeholders like "TBD" or "Not specified" - instead write what would be typical or expected based on the tender context.
+12. **DO NOT include markdown code blocks or triple backticks**: Just output the raw JSON object starting with { and ending with }.
 
-2. **Key Dates and Rules**: Present as bullet points (•) with clear, concise information. Include dates, amounts, and requirements.
-
-3. **Risks and Gaps**: Present as bullet points (•) highlighting specific concerns and mitigation strategies.
-
-4. **All Other Sections**: Write in detailed, descriptive paragraphs. Be comprehensive and professional.
-
-5. **Document Overview**: This is crucial - make it detailed enough that someone reading only this section understands the complete tender.
-
-6. **Word Count**: Aim for 10,000-12,000 total words to ensure 15-20 pages of content.
-
-7. **Professional Tone**: Use formal business language appropriate for government proposals.
-
-8. **Specificity**: Base everything on the actual tender document. Extract real dates, numbers, requirements.
-
-9. **Valid JSON**: Ensure your response is properly formatted JSON that can be parsed.
-
-10. **Completeness**: Fill all sections with meaningful content. Never use placeholders like "TBD" or "Not specified" - instead write what would be typical or expected based on the tender context.
-
-Now analyze the provided tender document and generate a complete, professional proposal.
+Now analyze the provided tender document and generate ONLY a complete, professional proposal JSON object with no other text.
 """
 
         try:
