@@ -28,8 +28,6 @@ class Settings:
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
     OPENAI_API_BASE: str = "https://api.openai.com/v1"
     CHAT_MODEL: str = "gpt-4-1-mini"
-    WHISPER_MODEL: str = "whisper-1"
-    WHISPER_RESPONSE_FORMAT: str = "text"
     
     # ══════════════════════════════════════════════════════════════
     # Google Gemini Configuration (for PDF analysis)
@@ -58,17 +56,6 @@ class Settings:
     MAX_HISTORY_MESSAGES: int = 5
     
     # ══════════════════════════════════════════════════════════════
-    # Audio Configuration (for voice assistant)
-    # ══════════════════════════════════════════════════════════════
-    AUDIO_BASE_URL: str = "http://206.162.244.175:8089"
-    TEMP_DIR: str = "/app/temp"
-    AUDIO_RESPONSE_PATH: str = "/app/audio"
-    
-    # Whisper configuration
-    WHISPER_LANGUAGE_DETECT: bool = True
-    WHISPER_TASK: str = "transcribe"
-    
-    # ══════════════════════════════════════════════════════════════
     # Logging Configuration
     # ══════════════════════════════════════════════════════════════
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
@@ -78,7 +65,7 @@ class Settings:
     # Timeout Configuration
     # ══════════════════════════════════════════════════════════════
     PDF_PROCESSING_TIMEOUT: int = 300  # 5 minutes timeout for PDF processing
-    API_REQUEST_TIMEOUT: int = 60      # 1 minute timeout for API requests
+    API_REQUEST_TIMEOUT: int = 120   # 1 minute timeout for API requests
     
     # ══════════════════════════════════════════════════════════════
     # Rate Limiting (optional)
