@@ -7,10 +7,6 @@ load_dotenv()
 
 class Settings:
     def __init__(self):
-        # Ensure required directories exist
-        os.makedirs(self.TEMP_DIR, exist_ok=True)
-        os.makedirs(self.AUDIO_RESPONSE_PATH, exist_ok=True)
-        print(f"[CONFIG] Created/verified directories: {self.TEMP_DIR}, {self.AUDIO_RESPONSE_PATH}")
         
         # Validate critical API keys
         self._validate_api_keys()
