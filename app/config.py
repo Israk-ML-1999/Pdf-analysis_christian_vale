@@ -7,31 +7,16 @@ load_dotenv()
 
 class Settings:
     def __init__(self):
-        # Ensure required directories exist
-        os.makedirs(self.TEMP_DIR, exist_ok=True)
-        os.makedirs(self.AUDIO_RESPONSE_PATH, exist_ok=True)
-        print(f"[CONFIG] Created/verified directories: {self.TEMP_DIR}, {self.AUDIO_RESPONSE_PATH}")
         
         # Validate critical API keys
         self._validate_api_keys()
 
-    # ══════════════════════════════════════════════════════════════
     # App Configuration 
     # ══════════════════════════════════════════════════════════════
     APP_NAME: str = "Government Tender Proposal Generator API"
     APP_DESCRIPTION: str = "AI-powered tender analysis and proposal generation system"
     APP_VERSION: str = "1.0.0"
-    
-    # ══════════════════════════════════════════════════════════════
-    # OpenAI Configuration (for voice assistant features)
-    # ══════════════════════════════════════════════════════════════
-    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
-    OPENAI_API_BASE: str = "https://api.openai.com/v1"
-    CHAT_MODEL: str = "gpt-4-1-mini"
-    WHISPER_MODEL: str = "whisper-1"
-    WHISPER_RESPONSE_FORMAT: str = "text"
-    
-    # ══════════════════════════════════════════════════════════════
+     
     # Google Gemini Configuration (for PDF analysis)
     # ══════════════════════════════════════════════════════════════
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
@@ -58,17 +43,6 @@ class Settings:
     MAX_HISTORY_MESSAGES: int = 5
     
     # ══════════════════════════════════════════════════════════════
-    # Audio Configuration (for voice assistant)
-    # ══════════════════════════════════════════════════════════════
-    AUDIO_BASE_URL: str = "http://206.162.244.175:8089"
-    TEMP_DIR: str = "/app/temp"
-    AUDIO_RESPONSE_PATH: str = "/app/audio"
-    
-    # Whisper configuration
-    WHISPER_LANGUAGE_DETECT: bool = True
-    WHISPER_TASK: str = "transcribe"
-    
-    # ══════════════════════════════════════════════════════════════
     # Logging Configuration
     # ══════════════════════════════════════════════════════════════
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
@@ -78,7 +52,7 @@ class Settings:
     # Timeout Configuration
     # ══════════════════════════════════════════════════════════════
     PDF_PROCESSING_TIMEOUT: int = 300  # 5 minutes timeout for PDF processing
-    API_REQUEST_TIMEOUT: int = 60      # 1 minute timeout for API requests
+    API_REQUEST_TIMEOUT: int = 120   # 1 minute timeout for API requests
     
     # ══════════════════════════════════════════════════════════════
     # Rate Limiting (optional)
@@ -86,7 +60,6 @@ class Settings:
     RATE_LIMIT_ENABLED: bool = os.getenv("RATE_LIMIT_ENABLED", "False").lower() == "true"
     MAX_REQUESTS_PER_MINUTE: int = int(os.getenv("MAX_REQUESTS_PER_MINUTE", "10"))
     
-    # ══════════════════════════════════════════════════════════════
     # Tender Document Types (for dynamic section generation)
     # ══════════════════════════════════════════════════════════════
     SUPPORTED_TENDER_TYPES: list = [
@@ -101,7 +74,6 @@ class Settings:
         "General Services"
     ]
     
-    # ══════════════════════════════════════════════════════════════
     # Proposal Sections Configuration
     # ══════════════════════════════════════════════════════════════
     PROPOSAL_SECTIONS: Dict[str, Dict[str, Any]] = {
@@ -184,9 +156,6 @@ class Settings:
         
         if not self.GEMINI_API_KEY:
             warnings.append("⚠️  GEMINI_API_KEY not set - PDF analysis will not work")
-        
-        if not self.OPENAI_API_KEY:
-            warnings.append("⚠️  OPENAI_API_KEY not set - Voice assistant features disabled")
         
         if warnings:
             print("\n" + "="*60)
