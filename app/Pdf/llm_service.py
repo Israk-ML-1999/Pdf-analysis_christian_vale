@@ -5,12 +5,13 @@ import re
 from typing import Dict, Any, List
 import os
 from datetime import datetime
+from app.config import settings
 
 class GeminiPDFService:
     def __init__(self, api_key: str):
         """Initialize Gemini client with API key"""
         self.client = genai.Client(api_key=api_key)
-        self.model_id = "gemini-2.5-flash"
+        self.model_id = settings.GEMINI_MODEL
         
     def _clean_json_string(self, text: str) -> str:
         """
@@ -20,26 +21,30 @@ class GeminiPDFService:
         # Remove markdown code block wrappers - aggressive stripping
         text = text.strip()
         
-        # Remove all variations of markdown code blocks
-        # Handle ```json, ```, etc. - strip from both ends
-        for _ in range(5):  # Multiple passes to handle nested/repeated markers
-            if text.startswith("```json"):
+        # Remove all variations of markdown code blocks - MORE AGGRESSIVE
+        # Handle ```json, ```, etc. - strip from both ends MULTIPLE TIMES
+        for _ in range(10):  # Increased from 5 to 10 passes
+            original_text = text
+            
+            # Remove from start
+            if text.startswith("```json\n"):
+                text = text[8:].strip()
+            elif text.startswith("```json"):
                 text = text[7:].strip()
+            elif text.startswith("```\n"):
+                text = text[4:].strip()
             elif text.startswith("```"):
                 text = text[3:].strip()
             
-            if text.endswith("```"):
+            # Remove from end
+            if text.endswith("\n```"):
+                text = text[:-4].strip()
+            elif text.endswith("```"):
                 text = text[:-3].strip()
-        
-        # Remove control characters (ASCII < 32) except newlines, carriage returns, tabs
-        # which may appear in JSON string content and need to be escaped
-        cleaned_chars = []
-        for char in text:
-            char_code = ord(char)
-            # Keep: printable chars (32-126), extended ASCII (127-255), and \n \r \t
-            if char_code >= 32 or char in '\n\r\t':
-                cleaned_chars.append(char)
-        text = ''.join(cleaned_chars)
+            
+            # If nothing changed, we're done
+            if text == original_text:
+                break
         
         # Extract JSON object (find first { and last })
         # This handles cases where the API adds text before/after JSON
@@ -69,7 +74,7 @@ class GeminiPDFService:
             return json.loads(cleaned)
         except json.JSONDecodeError as e:
             print(f"[JSON PARSE] Strategy 2 (cleaned) failed at position {e.pos}: {e.msg}")
-            print(f"[JSON PARSE] Context around error: ...{text[max(0, e.pos-50):min(len(text), e.pos+50)]}...")
+            print(f"[JSON PARSE] Context around error: ...{cleaned[max(0, e.pos-50):min(len(cleaned), e.pos+50)]}...")
         
         # Strategy 3: Try to fix unescaped newlines - more careful approach
         try:
@@ -279,7 +284,7 @@ Analyze the provided government tender document and create a comprehensive, prof
 **PRIMARY DOCUMENT**: The FIRST PDF is the main government tender/RFP document that contains all requirements, specifications, and evaluation criteria.
 {supporting_context}
 
-IMPORTANT: You MUST respond in valid JSON format with a dynamic structure based on the tender document content.
+**CRITICAL OUTPUT REQUIREMENT**: You MUST respond with ONLY a valid JSON object. DO NOT wrap the JSON in markdown code blocks (```json or ```). DO NOT add any text before or after the JSON object. Return ONLY the raw JSON.
 
 Your response should follow this structure:
 {{
@@ -377,11 +382,13 @@ CRITICAL INSTRUCTIONS:
 
 10. **Specificity**: Base everything on the actual tender document. Extract real dates, numbers, requirements.
 
-11. **Valid JSON**: Ensure your response is properly formatted JSON that can be parsed.
+11. **Valid JSON**: Ensure your response is properly formatted JSON that can be parsed. DO NOT use markdown code blocks.
 
 12. **Completeness**: Fill all sections with meaningful content. Never use placeholders like "TBD" or "Not specified".
 
 13. **Attribution**: In the appendix, list which supporting documents were actually used to enhance the proposal.
+
+**REMINDER**: Output ONLY the JSON object. No markdown, no code blocks, no explanatory text. Just the pure JSON starting with {{ and ending with }}.
 
 Now analyze the provided tender document and supporting materials to generate a complete, professional proposal.
 """
@@ -424,12 +431,15 @@ Now analyze the provided tender document and supporting materials to generate a 
             # Get response text
             report_text = response.text.strip()
             
-            # Log first 500 chars for debugging
-            print(f"[GEMINI] Response preview: {report_text[:500]}...")
+            # Log first and last 200 chars for debugging
+            print(f"[GEMINI] Response length: {len(report_text)} chars")
+            print(f"[GEMINI] Response starts: {report_text[:200]}...")
+            print(f"[GEMINI] Response ends: ...{report_text[-200:]}")
             
             # Parse JSON with multiple strategies
             try:
                 proposal_data = self._parse_json_safely(report_text)
+                print(f"[JSON PARSE] ✓ Successfully parsed JSON")
             except ValueError as ve:
                 return {
                     "status": "error",

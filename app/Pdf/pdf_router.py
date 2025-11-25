@@ -54,44 +54,6 @@ async def analyze_tender_document(
     """
     Upload a government tender document with optional supporting materials to generate a comprehensive 15-20 page proposal.
     
-    **Main Document (Required):**
-    - 📄 **tender_file**: The primary government tender/RFP document containing all requirements
-    
-    **Supporting Documents (Optional - Single Upload Field):**
-    - 📎 **supporting_documents**: Upload multiple PDFs of any type to enhance your proposal:
-      - Capability Statements: Company strengths and qualifications
-      - Certificates: Certifications, licenses, compliance documents
-      - Past Proposals: Previous successful proposals for methodology reference
-      - Company Profiles: Company overview and organizational information
-      - Success Stories: Case studies and testimonials from past projects
-      - Other Supporting Materials: Any other relevant documents
-    
-    **How Supporting Documents Enhance Your Proposal:**
-    - The AI automatically analyzes all supporting documents
-    - Extracts relevant information based on document content
-    - Integrates information into appropriate proposal sections
-    - Strengthens organizational capability, compliance, and technical approach
-    - Provides concrete examples and case studies
-    
-    **Limitations:**
-    - Maximum 7 total PDFs (1 tender + up to 6 supporting documents)
-    - Each PDF: max 50MB, ~200 pages
-    - All files must be valid PDF format
-    
-    **Response Sections:**
-    - **Document Overview**: Comprehensive summary (1000-1200 words)
-    - **Title Page**: Tender identification details
-    - **Executive Summary**: Proposal highlights (800-1000 words)
-    - **Key Dates & Rules**: Critical dates and requirements
-    - **Compliance Matrix**: Detailed compliance mapping (700-900 words)
-    - **Technical Approach**: Implementation methodology (1200-1400 words)
-    - **Risks & Gaps**: Risk analysis and mitigation
-    - **Financial Overview**: Cost approach (600-700 words)
-    - **Organizational Capability**: Company qualifications (700-800 words)
-    - **Recommendations**: Value additions (700-800 words)
-    - **Implementation Timeline**: Project schedule (500-600 words)
-    - **Appendix**: Supporting documents and references
-    
     **Returns:** JSON formatted proposal ready for submission (10,000-12,000 words, 15-20 pages)
     """
     
