@@ -15,7 +15,7 @@ services:
     networks:
       - app-network
     volumes:
-      - ./audio:/app/audio  # Mount audio folder in app container
+      - ./audio:/app/audio  
 
   nginx:
     image: nginx:alpine
